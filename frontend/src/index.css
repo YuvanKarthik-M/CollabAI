@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* Custom Sleek Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090d16; /* Slate-950 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b; /* Slate-800 */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155; /* Slate-700 */
+}
+
+/* Firefox support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b #090d16;
+}
