@@ -4,36 +4,44 @@ import axios from 'axios';
 import { 
   Users, PlusCircle, Send, X, Calendar, 
   CheckCircle, XCircle, Bell, Sparkles, Code, 
-  Settings, ToggleLeft, ToggleRight, Shield, Crown, Mail 
+  Shield, Mail, Crown, ArrowRight 
 } from 'lucide-react';
 
 export default function Teams({ user }) {
   const navigate = useNavigate();
   const [myTeams, setMyTeams] = useState([]);
   const [discoverTeams, setDiscoverTeams] = useState([]);
+  const [myInvitations, setMyInvitations] = useState([]);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedDiscoverTeam, setSelectedDiscoverTeam] = useState(null); // Popup for non-members
+  const [selectedDiscoverTeam, setSelectedDiscoverTeam] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [editTeamModal, setEditTeamModal] = useState(null);
+  const [selectedInvite, setSelectedInvite] = useState(null);
 
   const [form, setForm] = useState({
     name: '', eventName: '', description: '', requiredSkills: '', requiredInterests: ''
   });
 
-  const fetchTeams = async () => {
+  const fetchData = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/teams', {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
-      setMyTeams(res.data.myTeams || []);
-      setDiscoverTeams(res.data.discoverTeams || []);
+      const [teamsRes, invitesRes] = await Promise.all([
+        axios.get('http://localhost:5000/api/teams', {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }),
+        axios.get('http://localhost:5000/api/teams/invitations/me', {
+          headers: { Authorization: `Bearer ${user.token}` }
+        })
+      ]);
+      setMyTeams(teamsRes.data.myTeams || []);
+      setDiscoverTeams(teamsRes.data.discoverTeams || []);
+      setMyInvitations(invitesRes.data || []);
     } catch (err) {
-      console.error('Failed to fetch teams', err);
+      console.error('Failed to fetch dashboard data', err);
     }
   };
 
   useEffect(() => {
-    fetchTeams();
+    fetchData();
   }, []);
 
   const handleCreateTeam = async (e) => {
@@ -44,22 +52,9 @@ export default function Teams({ user }) {
       });
       setForm({ name: '', eventName: '', description: '', requiredSkills: '', requiredInterests: '' });
       setShowCreateModal(false);
-      fetchTeams();
+      fetchData();
     } catch (err) {
       alert('Error creating team');
-    }
-  };
-
-  const handleEditTeam = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.put(`http://localhost:5000/api/teams/${editTeamModal._id}`, editTeamModal, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
-      setEditTeamModal(null);
-      fetchTeams();
-    } catch (err) {
-      alert('Error updating team');
     }
   };
 
@@ -70,7 +65,7 @@ export default function Teams({ user }) {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       alert('Join request sent!');
-      fetchTeams();
+      fetchData();
       setSelectedDiscoverTeam(null);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to send request');
@@ -84,52 +79,100 @@ export default function Teams({ user }) {
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
       setSelectedRequest(null);
-      fetchTeams();
+      fetchData();
     } catch (err) {
       alert('Error updating request');
     }
   };
 
-  // Collect pending requests for teams created by this user
+  const handleInvitationResponse = async (teamId, action) => {
+    try {
+      await axios.post('http://localhost:5000/api/teams/invitations/action', 
+        { teamId, action },
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      setSelectedInvite(null);
+      fetchData();
+    } catch (err) {
+      alert('Error responding to invitation');
+    }
+  };
+
   const incomingRequests = myTeams
     .filter(t => (t.creator?._id || t.creator) === user._id)
     .flatMap(t => (t.requests || []).map(student => ({ student, team: t })));
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12">
 
-      {/* Leader Pending Requests Header */}
-      {incomingRequests.length > 0 && (
-        <div className="bg-amber-950/40 border border-amber-800/60 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 mb-3 text-amber-400 font-semibold text-sm">
-            <Bell size={18} className="text-amber-400 animate-bounce" />
-            Pending Member Requests ({incomingRequests.length})
+      {/* ========================================================================= */}
+      {/* NOTIFICATIONS: INCOMING INVITATIONS & LEADER REQUESTS                    */}
+      {/* ========================================================================= */}
+      <div className="space-y-4">
+        
+        {/* Student Incoming Team Invitations Banner */}
+        {myInvitations.length > 0 && (
+          <div className="bg-emerald-950/40 border border-emerald-800/60 p-4 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-2 mb-3 text-emerald-400 font-semibold text-sm">
+              <Mail size={18} className="animate-bounce" />
+              Direct Team Invitations ({myInvitations.length})
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {myInvitations.map(team => (
+                <button
+                  key={team._id}
+                  onClick={() => setSelectedInvite(team)}
+                  className="bg-slate-900 hover:bg-slate-800 border border-emerald-800/40 px-3.5 py-2 rounded-xl text-left transition-all flex items-center gap-3 shrink-0 cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold flex items-center justify-center text-xs">
+                    {team.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-200">{team.name}</div>
+                    <div className="text-[11px] text-slate-400">Invited by: {team.creator?.name}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {incomingRequests.map(({ student, team }) => (
-              <button
-                key={`${team._id}-${student._id}`}
-                onClick={() => setSelectedRequest({ student, team })}
-                className="bg-slate-900 hover:bg-slate-800 border border-amber-800/40 px-3.5 py-2 rounded-xl text-left transition-all flex items-center gap-3 shrink-0 cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold flex items-center justify-center text-xs">
-                  {student.name?.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-200">{student.name}</div>
-                  <div className="text-[11px] text-slate-400">For: {team.name}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* SECTION 1: MY TEAMS (Opens Full Page upon click) */}
+        {/* Team Leader Requests Banner */}
+        {incomingRequests.length > 0 && (
+          <div className="bg-amber-950/40 border border-amber-800/60 p-4 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-2 mb-3 text-amber-400 font-semibold text-sm">
+              <Bell size={18} className="animate-bounce" />
+              Pending Member Join Requests ({incomingRequests.length})
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {incomingRequests.map(({ student, team }) => (
+                <button
+                  key={`${team._id}-${student._id}`}
+                  onClick={() => setSelectedRequest({ student, team })}
+                  className="bg-slate-900 hover:bg-slate-800 border border-amber-800/40 px-3.5 py-2 rounded-xl text-left transition-all flex items-center gap-3 shrink-0 cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold flex items-center justify-center text-xs">
+                    {student.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-200">{student.name}</div>
+                    <div className="text-[11px] text-slate-400">For: {team.name}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 1: MY ACTIVE TEAMS (VIEW ONLY -> CLICK OPENS FULL WORKSPACE)     */}
+      {/* ========================================================================= */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Shield className="text-emerald-500" size={20} /> My Teams ({myTeams.length})
+            <Shield className="text-emerald-500" size={20} /> My Active Teams ({myTeams.length})
           </h3>
           <button 
             onClick={() => setShowCreateModal(true)}
@@ -151,29 +194,18 @@ export default function Teams({ user }) {
                 <div 
                   key={team._id} 
                   onClick={() => navigate(`/teams/${team._id}`)}
-                  className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-slate-700 transition-all"
+                  className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-slate-700 transition-all group"
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <h4 className="text-base font-bold text-slate-100">{team.name}</h4>
-                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                        {isCreator && (
-                          <button 
-                            onClick={() => setEditTeamModal(team)}
-                            className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg cursor-pointer"
-                            title="Edit Team Settings"
-                          >
-                            <Settings size={14} />
-                          </button>
-                        )}
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                          isCreator 
-                            ? 'bg-purple-950/60 text-purple-400 border-purple-900/50' 
-                            : 'bg-emerald-950/60 text-emerald-400 border-emerald-900/50'
-                        }`}>
-                          {isCreator ? 'Leader' : 'Member'}
-                        </span>
-                      </div>
+                      <h4 className="text-base font-bold text-slate-100 group-hover:text-blue-400 transition-colors">{team.name}</h4>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                        isCreator 
+                          ? 'bg-purple-950/60 text-purple-400 border-purple-900/50' 
+                          : 'bg-emerald-950/60 text-emerald-400 border-emerald-900/50'
+                      }`}>
+                        {isCreator ? 'Leader' : 'Member'}
+                      </span>
                     </div>
 
                     <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
@@ -187,10 +219,11 @@ export default function Teams({ user }) {
                     <p className="text-xs text-slate-400 mt-2 line-clamp-2">{team.description}</p>
                   </div>
 
-                  <div className="mt-3 flex gap-1.5 flex-wrap">
-                    {team.requiredSkills?.map((s, idx) => (
-                      <span key={idx} className="bg-blue-950/60 text-blue-400 border border-blue-900/50 text-[11px] px-2 py-0.5 rounded-lg font-medium">{s}</span>
-                    ))}
+                  <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+                    <span className="text-[11px] text-slate-500 font-medium">Click to enter workspace</span>
+                    <span className="text-xs text-blue-400 font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                      Open Team <ArrowRight size={13} />
+                    </span>
                   </div>
                 </div>
               );
@@ -199,7 +232,9 @@ export default function Teams({ user }) {
         )}
       </div>
 
-      {/* SECTION 2: DISCOVER TEAMS (Opens Popup Modal upon click) */}
+      {/* ========================================================================= */}
+      {/* SECTION 2: DISCOVER TEAMS (CLICK OPENS DETAILS POPUP)                     */}
+      {/* ========================================================================= */}
       <div className="space-y-4">
         <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
           <Users className="text-blue-500" size={20} /> Discover Teams
@@ -257,12 +292,14 @@ export default function Teams({ user }) {
         </div>
       </div>
 
-      {/* MODAL: DISCOVER TEAM POPUP (Includes Team Members List) */}
+      {/* ========================================================================= */}
+      {/* MODALS                                                                    */}
+      {/* ========================================================================= */}
+
+      {/* Modal: Non-Member Discover Team Details */}
       {selectedDiscoverTeam && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-            
-            {/* Header */}
             <div className="flex justify-between items-start border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-xl font-bold text-slate-100">{selectedDiscoverTeam.name}</h3>
@@ -275,7 +312,6 @@ export default function Teams({ user }) {
               </button>
             </div>
 
-            {/* Scrollable Body */}
             <div className="space-y-4 overflow-y-auto pr-1">
               <div>
                 <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">About Project</h5>
@@ -291,7 +327,6 @@ export default function Teams({ user }) {
                 </div>
               </div>
 
-              {/* Restored Team Members List */}
               <div>
                 <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                   Existing Members ({selectedDiscoverTeam.members?.length || 0})
@@ -319,15 +354,6 @@ export default function Teams({ user }) {
                             </div>
                           </div>
                         </div>
-
-                        {/* Member Skill Badges */}
-                        <div className="flex gap-1 flex-wrap justify-end">
-                          {m.skills?.slice(0, 2).map((skill, idx) => (
-                            <span key={idx} className="bg-slate-800 text-slate-400 border border-slate-700 text-[10px] px-1.5 py-0.5 rounded">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
                       </div>
                     );
                   })}
@@ -335,7 +361,6 @@ export default function Teams({ user }) {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="pt-3 border-t border-slate-800 flex justify-end gap-2 shrink-0">
               <button onClick={() => setSelectedDiscoverTeam(null)} className="px-4 py-2 text-xs font-medium text-slate-400 hover:bg-slate-800 rounded-xl cursor-pointer">
                 Close
@@ -351,7 +376,7 @@ export default function Teams({ user }) {
         </div>
       )}
 
-      {/* MODAL: CREATE TEAM */}
+      {/* Modal: Create Team */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
@@ -403,63 +428,51 @@ export default function Teams({ user }) {
         </div>
       )}
 
-      {/* MODAL: EDIT TEAM (Leader Only) */}
-      {editTeamModal && (
+      {/* Modal: Incoming Invitation Detail */}
+      {selectedInvite && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <Settings className="text-blue-500" size={18} /> Manage Team Details
-              </h3>
-              <button onClick={() => setEditTeamModal(null)} className="text-slate-400 hover:text-slate-200 cursor-pointer">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-100">Team Invitation</h3>
+                <span className="text-xs text-emerald-400 font-medium">Invited to join {selectedInvite.name}</span>
+              </div>
+              <button onClick={() => setSelectedInvite(null)} className="text-slate-400 hover:text-slate-200 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleEditTeam} className="space-y-3">
-              <div className="flex items-center justify-between bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                <div>
-                  <div className="text-sm font-semibold text-slate-200">Accepting Join Requests</div>
-                  <div className="text-xs text-slate-400">Turn off when your team roster is full</div>
-                </div>
-                <button 
-                  type="button" 
-                  onClick={() => setEditTeamModal({...editTeamModal, isOpen: !editTeamModal.isOpen})}
-                  className="text-blue-400 cursor-pointer"
-                >
-                  {editTeamModal.isOpen ? <ToggleRight size={32} className="text-emerald-500" /> : <ToggleLeft size={32} className="text-slate-500" />}
-                </button>
+
+            <div className="space-y-3">
+              <div className="bg-slate-800/60 border border-slate-800 p-3 rounded-xl text-xs space-y-1">
+                <div><b className="text-slate-300">Team Leader:</b> <span className="text-slate-400">{selectedInvite.creator?.name} ({selectedInvite.creator?.email})</span></div>
+                <div><b className="text-slate-300">Event:</b> <span className="text-slate-400">{selectedInvite.eventName || 'General Project'}</span></div>
               </div>
 
-              <input 
-                type="text" placeholder="Team Name" value={editTeamModal.name} 
-                onChange={e => setEditTeamModal({...editTeamModal, name: e.target.value})} required 
-                className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100"
-              />
-              <input 
-                type="text" placeholder="Event Name" value={editTeamModal.eventName || ''} 
-                onChange={e => setEditTeamModal({...editTeamModal, eventName: e.target.value})} 
-                className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100"
-              />
-              <textarea 
-                placeholder="Description" value={editTeamModal.description} 
-                onChange={e => setEditTeamModal({...editTeamModal, description: e.target.value})} required 
-                className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100"
-                rows="3"
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setEditTeamModal(null)} className="px-4 py-2 text-xs font-medium text-slate-400 cursor-pointer">
-                  Cancel
-                </button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 px-4 rounded-xl cursor-pointer">
-                  Save Changes
-                </button>
+              <div>
+                <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Project Description</h5>
+                <p className="text-xs text-slate-300 bg-slate-800/40 p-3 rounded-xl border border-slate-800">{selectedInvite.description}</p>
               </div>
-            </form>
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 flex gap-2">
+              <button 
+                onClick={() => handleInvitationResponse(selectedInvite._id, 'reject')}
+                className="flex-1 py-2 text-xs font-medium bg-red-950/60 text-red-400 border border-red-900/50 hover:bg-red-900/60 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <XCircle size={14} /> Decline
+              </button>
+              <button 
+                onClick={() => handleInvitationResponse(selectedInvite._id, 'accept')}
+                className="flex-1 py-2 text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <CheckCircle size={14} /> Accept & Join Team
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: CANDIDATE JOIN REQUESTS */}
+      {/* Modal: Leader Candidate Join Request */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">

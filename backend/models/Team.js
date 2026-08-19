@@ -8,8 +8,9 @@ const teamSchema = new mongoose.Schema({
   requiredInterests: [String],
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  requests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  isOpen: { type: Boolean, default: true } // Team invitation status
+  requests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Student -> Leader
+  invitations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Leader -> Student
+  isOpen: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const Team = mongoose.model('Team', teamSchema);

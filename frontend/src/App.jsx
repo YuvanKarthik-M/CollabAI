@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import Auth from './components/Auth';
 import Profile from './components/Profile';
 import Teams from './components/Team';
 import TeamDetails from './components/TeamDetails';
+import { User } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const profile = localStorage.getItem('profile');
@@ -18,6 +20,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('profile');
     setUser(null);
+    navigate('/');
   };
 
   return (
@@ -30,12 +33,9 @@ export default function App() {
             <Link to="/" className="text-sm font-medium text-slate-300 hover:text-blue-400 transition-colors">
               Dashboard
             </Link>
-            <Link to="/profile" className="text-sm font-medium text-slate-300 hover:text-blue-400 transition-colors">
-              Edit Profile
+            <Link to="/profile" className="flex gap-2 text-sm font-medium text-slate-300 hover:text-blue-400 transition-colors">
+              <User width={24}/>{user.name}
             </Link>
-            <span className="text-sm font-medium text-slate-400 border-l pl-4 border-slate-800">
-              Welcome, <span className="text-slate-200 font-semibold">{user.name}</span>
-            </span>
             <button 
               onClick={handleLogout} 
               className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2 px-3.5 rounded-xl transition-colors cursor-pointer"
