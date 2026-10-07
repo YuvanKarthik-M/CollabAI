@@ -12,6 +12,8 @@ export default function Teams({ user }) {
   const [myTeams, setMyTeams] = useState([]);
   const [discoverTeams, setDiscoverTeams] = useState([]);
   const [myInvitations, setMyInvitations] = useState([]);
+  const [officialEvents, setOfficialEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState('');
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDiscoverTeam, setSelectedDiscoverTeam] = useState(null);
@@ -24,17 +26,21 @@ export default function Teams({ user }) {
 
   const fetchData = async () => {
     try {
-      const [teamsRes, invitesRes] = await Promise.all([
+      const [teamsRes, invitesRes, eventsRes] = await Promise.all([
         axios.get('http://localhost:5000/api/teams', {
           headers: { Authorization: `Bearer ${user.token}` }
         }),
         axios.get('http://localhost:5000/api/teams/invitations/me', {
+          headers: { Authorization: `Bearer ${user.token}` }
+        }),
+        axios.get('http://localhost:5000/api/events', {
           headers: { Authorization: `Bearer ${user.token}` }
         })
       ]);
       setMyTeams(teamsRes.data.myTeams || []);
       setDiscoverTeams(teamsRes.data.discoverTeams || []);
       setMyInvitations(invitesRes.data || []);
+      setOfficialEvents(eventsRes.data || []);
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
     }
@@ -47,7 +53,11 @@ export default function Teams({ user }) {
   const handleCreateTeam = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/teams', form, {
+      const finalForm = {
+        ...form,
+        eventName: form.eventName.trim() || 'General Project'
+      };
+      await axios.post('http://localhost:5000/api/teams', finalForm, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       setForm({ name: '', eventName: '', description: '', requiredSkills: '', requiredInterests: '' });
@@ -209,7 +219,9 @@ export default function Teams({ user }) {
                     </div>
 
                     <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                      <span className="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">{team.eventName}</span>
+                      <span className="bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 text-[11px] font-medium">
+                        {team.eventName || 'General Project'}
+                      </span>
                       <span>• {team.members?.length || 1} members</span>
                       <span className={`text-[11px] ${team.isOpen ? 'text-emerald-400' : 'text-rose-400'}`}>
                         {team.isOpen ? '• Accepting Invites' : '• Invites Closed'}
@@ -394,11 +406,20 @@ export default function Teams({ user }) {
                 onChange={e => setForm({...form, name: e.target.value})} required 
                 className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
-              <input 
-                type="text" placeholder="Event / Hackathon Name" value={form.eventName} 
-                onChange={e => setForm({...form, eventName: e.target.value})} 
-                className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-              />
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  Event / Hackathon Name
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="General Project (or type official event name)" 
+                  value={form.eventName} 
+                  onChange={e => setForm({...form, eventName: e.target.value})} 
+                  className="w-full p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
               <input 
                 type="text" placeholder="Required Skills (comma separated)" value={form.requiredSkills} 
                 onChange={e => setForm({...form, requiredSkills: e.target.value})} 

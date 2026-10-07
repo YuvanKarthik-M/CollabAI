@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
 import { loginUser, registerUser } from '../services/api';
-import { Mail, Lock, User, LogIn, UserPlus, Users, MessageSquare } from 'lucide-react';
+import { 
+  Mail, Lock, User, LogIn, UserPlus, 
+  Sparkles, MessageSquare, Eye, EyeOff, ShieldCheck,
+  GraduationCap, Building2
+} from 'lucide-react';
 
 export default function Auth({ setUser }) {
   const [isSignup, setIsSignup] = useState(false);
+  const [signupRole, setSignupRole] = useState('student'); // 'student' | 'organisation'
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,7 +29,8 @@ export default function Auth({ setUser }) {
         res = await registerUser({
           name: formData.name,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          role: signupRole
         });
       } else {
         res = await loginUser({
@@ -44,7 +51,7 @@ export default function Auth({ setUser }) {
   return (
     <div className="min-h-[85vh] flex flex-col md:flex-row items-center justify-center px-6 max-w-6xl mx-auto gap-12 lg:gap-24">
       
-      {/* Left Column: Branding with Glowing Logo & 2 Primary Feature Points */}
+      {/* Left Column: Branding */}
       <div className="w-full md:w-1/2 flex flex-col justify-center text-left space-y-8">
         <div>
           <h1 className="text-6xl lg:text-7xl font-black tracking-tight select-none flex items-center drop-shadow-[0_0_35px_rgba(59,130,246,0.75)] filter">
@@ -52,47 +59,95 @@ export default function Auth({ setUser }) {
             <span className="text-blue-500">AI</span>
           </h1>
           <p className="text-xl font-medium text-slate-400 mt-1">
-            Next Gen Collaboration
+            Student Teams & Event Collaboration Platform
           </p>
         </div>
 
-        {/* 2 Enlarged Feature Points */}
-        <div className="space-y-5 pt-1">
+        {/* Feature Highlights */}
+        <div className="space-y-4 pt-1">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
-              <Users size={22} />
+              <Sparkles size={22} />
             </div>
-            <h4 className="text-base lg:text-lg font-semibold text-slate-200">
-              Skill & Interest Matching
-            </h4>
+            <div>
+              <h4 className="text-base font-semibold text-slate-200">
+                Student Team Formation
+              </h4>
+              <p className="text-xs text-slate-400">Match based on skills and interests, invite members & chat.</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
-              <MessageSquare size={22} />
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+              <Building2 size={22} />
             </div>
-            <h4 className="text-base lg:text-lg font-semibold text-slate-200">
-              Built-in Team Chat
-            </h4>
+            <div>
+              <h4 className="text-base font-semibold text-slate-200">
+                Organization Events & Hackathons
+              </h4>
+              <p className="text-xs text-slate-400">Organizations host events for student teams to join.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <h4 className="text-base font-semibold text-slate-200">
+                Centralized Admin Oversight
+              </h4>
+              <p className="text-xs text-slate-400">Moderation of teams, organizations, and active events.</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Right Column: Auth Card */}
       <div className="w-full md:w-1/2 max-w-md">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-slate-950/50">
+        
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-slate-950/50 relative overflow-hidden">
           
           {/* Card Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-slate-100 tracking-tight">
-              {isSignup ? 'Create an Account' : 'Welcome Back'}
+              {isSignup ? 'Create an Account' : 'Account Login'}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               {isSignup 
-                ? 'Register to start finding and creating teams.' 
+                ? 'Select account type below to get started.' 
                 : 'Enter your credentials to access your dashboard.'}
             </p>
           </div>
+
+          {/* Sign Up Mode Switcher (Student vs Organization) */}
+          {isSignup && (
+            <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 mb-5">
+              <button
+                type="button"
+                onClick={() => setSignupRole('student')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  signupRole === 'student'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <GraduationCap size={16} /> Student
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSignupRole('organisation')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  signupRole === 'organisation'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Building2 size={16} /> Organization
+              </button>
+            </div>
+          )}
 
           {/* Error Notice */}
           {error && (
@@ -106,7 +161,7 @@ export default function Auth({ setUser }) {
             {isSignup && (
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Full Name
+                  {signupRole === 'organisation' ? 'Organization Name' : 'Full Name'}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -114,7 +169,7 @@ export default function Auth({ setUser }) {
                   </span>
                   <input
                     type="text"
-                    placeholder="John Doe"
+                    placeholder={signupRole === 'organisation' ? 'TechCorp Foundation' : 'John Doe'}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
@@ -134,7 +189,7 @@ export default function Auth({ setUser }) {
                 </span>
                 <input
                   type="email"
-                  placeholder="student@university.edu"
+                  placeholder="your.email@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
@@ -152,13 +207,21 @@ export default function Auth({ setUser }) {
                   <Lock size={16} />
                 </span>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full pl-10 pr-11 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -171,7 +234,7 @@ export default function Auth({ setUser }) {
                 <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : isSignup ? (
                 <>
-                  <UserPlus size={15} /> Sign Up
+                  <UserPlus size={15} /> Sign Up as {signupRole === 'organisation' ? 'Organization' : 'Student'}
                 </>
               ) : (
                 <>
@@ -189,6 +252,7 @@ export default function Auth({ setUser }) {
               onClick={() => {
                 setIsSignup(!isSignup);
                 setError('');
+                setShowPassword(false);
               }}
               className="font-semibold text-blue-400 hover:text-blue-300 hover:underline transition-colors ml-1 cursor-pointer"
             >

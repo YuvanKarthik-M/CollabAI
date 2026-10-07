@@ -32,11 +32,15 @@ const Message = require('./models/Message');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const teamRoutes = require('./routes/teamRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 
 // Mount API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/events', eventRoutes);
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
