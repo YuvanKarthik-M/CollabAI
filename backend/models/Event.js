@@ -11,7 +11,8 @@ const eventSchema = new mongoose.Schema({
   type: { type: String, enum: ['individual', 'team'], default: 'team' },
   maxTeamSize: { type: Number, default: 4 },
   eligibility: { type: String, default: 'Open for all students' },
-  status: { type: String, enum: ['active', 'suspended'], default: 'active' }
+  status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+  registeredTeams: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Team' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);

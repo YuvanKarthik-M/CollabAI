@@ -1,6 +1,7 @@
 const Team = require('../models/Team');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const { getAdminEmails } = require('../utils/adminCheck');
 
 // Create a new team
 const createTeam = async (req, res) => {
@@ -46,19 +47,20 @@ const getTeams = async (req, res) => {
       if (isMember) {
         myTeams.push(team);
       } else if (team.isOpen) {
-        const teamSkills = (team.requiredSkills || []).map(s => s.toLowerCase());
+        const teamSkills    = (team.requiredSkills    || []).map(s => s.toLowerCase());
         const teamInterests = (team.requiredInterests || []).map(i => i.toLowerCase());
 
-        const matchingSkills = teamSkills.filter(s => userSkills.includes(s)).length;
-        const skillScore = teamSkills.length > 0 ? (matchingSkills / teamSkills.length) : 0;
+        const matchedSkills    = teamSkills.filter(s => userSkills.includes(s));
+        const matchedInterests = teamInterests.filter(i => userInterests.includes(i));
 
-        const matchingInterests = teamInterests.filter(i => userInterests.includes(i)).length;
-        const interestScore = teamInterests.length > 0 ? (matchingInterests / teamInterests.length) : 0;
+        const skillScore    = teamSkills.length    > 0 ? matchedSkills.length    / teamSkills.length    : 0;
 
-        const matchPercentage = Math.round(((skillScore * 0.6) + (interestScore * 0.4)) * 100);
+        const matchPercentage = Math.round(skillScore * 100);
 
         const teamObj = team.toObject();
-        teamObj.matchScore = matchPercentage;
+        teamObj.matchScore        = matchPercentage;
+        teamObj.matchedSkills     = matchedSkills;
+        teamObj.matchedInterests  = matchedInterests;
         discoverTeams.push(teamObj);
       }
     });
@@ -119,6 +121,14 @@ const updateTeam = async (req, res) => {
 // Send join request
 const joinTeamRequest = async (req, res) => {
   try {
+    const adminEmails = getAdminEmails();
+    const isUserAdmin = req.user.role === 'admin' || adminEmails.includes((req.user.email || '').trim().toLowerCase());
+    const isUserOrg = req.user.role === 'organisation';
+
+    if (isUserAdmin || isUserOrg) {
+      return res.status(403).json({ message: 'Only students can request to join teams' });
+    }
+
     const team = await Team.findById(req.params.id);
     if (!team || !team.isOpen) {
       return res.status(400).json({ message: 'Team is closed or not found' });
@@ -161,7 +171,7 @@ const handleRequestAction = async (req, res) => {
   }
 };
 
-// @desc    Search students to invite (excluding current team members)
+// @desc    Search students to invite (excluding current team members, organisations, and admins)
 // @route   GET /api/teams/:id/candidates
 const getInviteCandidates = async (req, res) => {
   try {
@@ -175,15 +185,67 @@ const getInviteCandidates = async (req, res) => {
       ...(team.requests || [])
     ];
 
-    const search = req.query.search || '';
-    const candidates = await User.find({
-      _id: { $nin: excludedIds },
-      $or: [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { skills: { $in: [new RegExp(search, 'i')] } }
-      ]
-    }).select('name email skills interests');
+    const adminEmails = getAdminEmails();
+    const search = (req.query.search || '').trim();
+
+    const andConditions = [
+      { _id: { $nin: excludedIds } },
+      {
+        $or: [
+          { role: 'student' },
+          { role: { $exists: false } },
+          { role: null }
+        ]
+      },
+      {
+        role: { $nin: ['admin', 'organisation', 'ADMIN', 'ORGANISATION'] }
+      }
+    ];
+
+    if (adminEmails && adminEmails.length > 0) {
+      andConditions.push({
+        email: { $nin: adminEmails.map(email => new RegExp(`^${email}$`, 'i')) }
+      });
+    }
+
+    if (search) {
+      andConditions.push({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { skills: { $in: [new RegExp(search, 'i')] } }
+        ]
+      });
+    }
+
+    const rawCandidates = await User.find({ $and: andConditions })
+      .select('name email skills interests role');
+
+    // Compute match score for each candidate against team's required skills & interests
+    const teamSkills    = (team.requiredSkills    || []).map(s => s.trim().toLowerCase());
+    const teamInterests = (team.requiredInterests || []).map(i => i.trim().toLowerCase());
+
+    const candidates = rawCandidates.map(candidate => {
+      const c = candidate.toObject();
+      const cSkills    = (c.skills    || []).map(s => s.trim().toLowerCase());
+      const cInterests = (c.interests || []).map(i => i.trim().toLowerCase());
+
+      const matchedSkills    = teamSkills.filter(s => cSkills.includes(s));
+      const matchedInterests = teamInterests.filter(i => cInterests.includes(i));
+
+      const skillScore    = teamSkills.length    > 0 ? matchedSkills.length    / teamSkills.length    : 0;
+      const matchScore    = Math.round(skillScore * 100);
+
+      return {
+        ...c,
+        matchScore,
+        matchedSkills,
+        matchedInterests
+      };
+    });
+
+    // Sort best match first
+    candidates.sort((a, b) => b.matchScore - a.matchScore);
 
     res.json(candidates);
   } catch (error) {
@@ -201,6 +263,20 @@ const sendTeamInvite = async (req, res) => {
     if (!team) return res.status(404).json({ message: 'Team not found' });
     if (team.creator.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Only team leader can send invitations' });
+    }
+
+    // Verify candidate exists and is a student (not organisation or admin)
+    const targetUser = await User.findById(studentId);
+    if (!targetUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const adminEmails = getAdminEmails();
+    const isTargetAdmin = targetUser.role === 'admin' || adminEmails.includes((targetUser.email || '').trim().toLowerCase());
+    const isTargetOrg = targetUser.role === 'organisation';
+
+    if (isTargetAdmin || isTargetOrg || (targetUser.role && targetUser.role !== 'student')) {
+      return res.status(400).json({ message: 'Invitations can only be sent to students' });
     }
 
     if (team.members.includes(studentId)) {
@@ -284,4 +360,59 @@ const getTeamMessages = async (req, res) => {
   }
 };
 
-module.exports = { createTeam, getTeams, updateTeam, joinTeamRequest, handleRequestAction, getInviteCandidates, sendTeamInvite, getMyInvitations, handleInvitationAction, getTeamMessages };
+// @desc    Leave a team (Member only)
+// @route   POST /api/teams/:id/leave
+const leaveTeam = async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.id);
+    if (!team) return res.status(404).json({ message: 'Team not found' });
+
+    if (team.creator.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Team leader cannot leave the team. You can delete or edit the team instead.' });
+    }
+
+    const isMember = team.members.some(m => m.toString() === req.user._id.toString());
+    if (!isMember) {
+      return res.status(400).json({ message: 'You are not a member of this team' });
+    }
+
+    team.members = team.members.filter(m => m.toString() !== req.user._id.toString());
+    await team.save();
+
+    res.json({ message: 'You have left the team successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Remove a member from team (Leader only)
+// @route   DELETE /api/teams/:id/members/:memberId
+const removeMember = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const team = await Team.findById(req.params.id);
+    if (!team) return res.status(404).json({ message: 'Team not found' });
+
+    if (team.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only team leader can remove members' });
+    }
+
+    if (team.creator.toString() === memberId.toString()) {
+      return res.status(400).json({ message: 'Cannot remove the team leader' });
+    }
+
+    const isMember = team.members.some(m => m.toString() === memberId.toString());
+    if (!isMember) {
+      return res.status(400).json({ message: 'User is not a member of this team' });
+    }
+
+    team.members = team.members.filter(m => m.toString() !== memberId.toString());
+    await team.save();
+
+    res.json({ message: 'Member removed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+module.exports = { createTeam, getTeams, updateTeam, joinTeamRequest, handleRequestAction, getInviteCandidates, sendTeamInvite, getMyInvitations, handleInvitationAction, getTeamMessages, leaveTeam, removeMember };

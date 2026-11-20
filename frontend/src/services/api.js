@@ -36,3 +36,13 @@ export const getMyOrgEvents = () => API.get('/events/my');
 export const getActiveEvents = () => API.get('/events');
 export const updateOrgEvent = (eventId, eventData) => API.put(`/events/${eventId}`, eventData);
 export const deleteOrgEvent = (eventId) => API.delete(`/events/${eventId}`);
+
+// Event Team Registration API
+export const registerTeamForEvent = (eventId, teamId) => 
+  API.post(`/events/${eventId}/register-team`, { teamId });
+export const unregisterTeamFromEvent = (eventId, teamId) => 
+  API.post(`/events/${eventId}/unregister-team`, { teamId });
+
+// Team Membership Endpoints
+export const leaveTeam = (teamId) => API.post(`/teams/${teamId}/leave`);
+export const removeTeamMember = (teamId, memberId) => API.delete(`/teams/${teamId}/members/${memberId}`);

@@ -10,13 +10,20 @@ export default function TeamChat({ teamId, user }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const isInitialLoad = useRef(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Scroll only the chat container to bottom, not the whole page
+  const scrollToBottom = (instant = false) => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
     if (!teamId || !user) return;
+
+    isInitialLoad.current = true;
 
     // 1. Join the team socket room
     socket.emit('join_team', teamId);
@@ -32,8 +39,16 @@ export default function TeamChat({ teamId, user }) {
           headers: { Authorization: token }
         });
         setMessages(res.data);
+        // Instantly jump to bottom for the initial history load (no smooth scroll)
+        setTimeout(() => {
+          if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+          }
+          isInitialLoad.current = false;
+        }, 0);
       } catch (err) {
         console.error('Failed to load chat history:', err);
+        isInitialLoad.current = false;
       }
     };
     fetchHistory();
@@ -51,11 +66,15 @@ export default function TeamChat({ teamId, user }) {
 
     return () => {
       socket.off('receive_message', handleReceive);
+      isInitialLoad.current = true;
     };
   }, [teamId, user]);
 
+  // Only smooth-scroll for new real-time messages, not for initial history load
   useEffect(() => {
-    scrollToBottom();
+    if (!isInitialLoad.current) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   const handleSendMessage = (e) => {
@@ -85,7 +104,7 @@ export default function TeamChat({ teamId, user }) {
         </span>
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto space-y-3.5 custom-scrollbar">
+      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3.5 custom-scrollbar">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-xs text-slate-500 gap-2">
             <MessageSquare size={28} className="text-slate-700" />
@@ -112,7 +131,6 @@ export default function TeamChat({ teamId, user }) {
             );
           })
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 bg-slate-900/60 flex gap-2">

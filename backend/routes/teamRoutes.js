@@ -10,7 +10,9 @@ const {
   getInviteCandidates,
   sendTeamInvite,
   getMyInvitations,
-  handleInvitationAction
+  handleInvitationAction,
+  leaveTeam,
+  removeMember
 } = require('../controllers/teamController');
 const protect = require('../middleware/authMiddleware'); //[cite: 1, 2, 3]
 
@@ -27,6 +29,8 @@ router.route('/:id')
 router.get('/:id/candidates', protect, getInviteCandidates);
 router.post('/:id/invite', protect, sendTeamInvite);
 router.post('/:id/join', protect, joinTeamRequest);
+router.post('/:id/leave', protect, leaveTeam);
+router.delete('/:id/members/:memberId', protect, removeMember);
 router.post('/requests/action', protect, handleRequestAction);
 router.get('/:id/messages', protect, getTeamMessages); // Existing chat route remains untouched
 

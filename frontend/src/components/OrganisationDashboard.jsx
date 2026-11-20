@@ -4,7 +4,7 @@ import {
 } from '../services/api';
 import { 
   Building2, Calendar, MapPin, Users, Globe, Plus, 
-  Trash2, Edit, CheckCircle, Ban, RefreshCw, X, AlertCircle, Award
+  Trash2, Edit, CheckCircle, Ban, RefreshCw, X, AlertCircle, Award, Mail, Crown, Eye
 } from 'lucide-react';
 
 export default function OrganisationDashboard({ currentUser }) {
@@ -15,6 +15,8 @@ export default function OrganisationDashboard({ currentUser }) {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [viewingRegisteredTeamsEvent, setViewingRegisteredTeamsEvent] = useState(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -120,6 +122,8 @@ export default function OrganisationDashboard({ currentUser }) {
     }
   };
 
+  const totalRegisteredTeams = events.reduce((acc, ev) => acc + (ev.registeredTeams?.length || 0), 0);
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       
@@ -174,13 +178,11 @@ export default function OrganisationDashboard({ currentUser }) {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-slate-400">Active Events</p>
-              <h3 className="text-3xl font-black text-white mt-1">
-                {events.filter(e => e.status === 'active').length}
-              </h3>
+              <p className="text-xs uppercase tracking-wider font-semibold text-slate-400">Total Registered Teams</p>
+              <h3 className="text-3xl font-black text-white mt-1">{totalRegisteredTeams}</h3>
             </div>
             <div className="p-3 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-2xl">
-              <CheckCircle size={24} />
+              <Users size={24} />
             </div>
           </div>
         </div>
@@ -188,13 +190,13 @@ export default function OrganisationDashboard({ currentUser }) {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-slate-400">Suspended Events</p>
+              <p className="text-xs uppercase tracking-wider font-semibold text-slate-400">Active Published Events</p>
               <h3 className="text-3xl font-black text-white mt-1">
-                {events.filter(e => e.status === 'suspended').length}
+                {events.filter(e => e.status === 'active').length}
               </h3>
             </div>
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl">
-              <Ban size={24} />
+            <div className="p-3 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-2xl">
+              <CheckCircle size={24} />
             </div>
           </div>
         </div>
@@ -209,7 +211,7 @@ export default function OrganisationDashboard({ currentUser }) {
 
           <button
             onClick={fetchMyEvents}
-            className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl"
+            className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl cursor-pointer"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -225,11 +227,11 @@ export default function OrganisationDashboard({ currentUser }) {
             <Calendar size={36} className="mx-auto text-slate-600" />
             <h3 className="text-base font-bold text-slate-300">No Events Published Yet</h3>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Create your first event, hackathon, or competition so student teams can discover and select it!
+              Create your first event, hackathon, or competition so student teams can discover and register!
             </p>
             <button
               onClick={handleOpenCreateModal}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl cursor-pointer"
             >
               + Create Event Now
             </button>
@@ -241,7 +243,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 key={ev._id} 
                 className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-lg flex flex-col justify-between relative overflow-hidden"
               >
-                {/* Event Status Bar */}
                 <div className={`absolute top-0 left-0 right-0 h-1 ${
                   ev.status === 'suspended' ? 'bg-amber-500' : 'bg-emerald-500'
                 }`} />
@@ -260,7 +261,7 @@ export default function OrganisationDashboard({ currentUser }) {
                         ? 'bg-amber-950 text-amber-400 border-amber-800'
                         : 'bg-emerald-950 text-emerald-400 border-emerald-800'
                     }`}>
-                      {ev.status === 'suspended' ? 'Suspended by Admin' : 'Active'}
+                      {ev.status === 'suspended' ? 'Suspended' : 'Active'}
                     </span>
                   </div>
 
@@ -268,7 +269,6 @@ export default function OrganisationDashboard({ currentUser }) {
                     {ev.description}
                   </p>
 
-                  {/* Metadata Chips */}
                   <div className="grid grid-cols-2 gap-2 text-xs pt-1">
                     <div className="flex items-center gap-1.5 text-slate-300 bg-slate-800/60 p-2 rounded-xl border border-slate-800">
                       <Calendar size={14} className="text-emerald-400 shrink-0" />
@@ -287,31 +287,39 @@ export default function OrganisationDashboard({ currentUser }) {
 
                     <div className="flex items-center gap-1.5 text-slate-300 bg-slate-800/60 p-2 rounded-xl border border-slate-800">
                       <Users size={14} className="text-amber-400 shrink-0" />
-                      <span>{ev.type === 'team' ? `Team (Max ${ev.maxTeamSize})` : 'Individual'}</span>
+                      <span>{ev.type === 'team' ? `Max ${ev.maxTeamSize} Members` : 'Individual'}</span>
                     </div>
                   </div>
 
-                  {/* Eligibility */}
                   <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 text-[11px] text-slate-400">
                     <span className="font-bold text-slate-300">Eligibility:</span> {ev.eligibility}
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="pt-4 border-t border-slate-800 flex justify-end gap-2">
+                {/* Actions & Registered Teams Trigger */}
+                <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => handleOpenEditModal(ev)}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                    onClick={() => setViewingRegisteredTeamsEvent(ev)}
+                    className="px-3 py-1.5 bg-blue-950/60 border border-blue-800/80 text-blue-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-blue-900/60"
                   >
-                    <Edit size={14} /> Edit
+                    <Eye size={14} /> Registered Teams ({ev.registeredTeams?.length || 0})
                   </button>
 
-                  <button
-                    onClick={() => setEventToDelete(ev)}
-                    className="px-3 py-1.5 bg-red-950/60 border border-red-800/80 hover:bg-red-900 text-red-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Trash2 size={14} /> Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenEditModal(ev)}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Edit size={14} /> Edit
+                    </button>
+
+                    <button
+                      onClick={() => setEventToDelete(ev)}
+                      className="px-3 py-1.5 bg-red-950/60 border border-red-800/80 hover:bg-red-900 text-red-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
                 </div>
 
               </div>
@@ -319,6 +327,70 @@ export default function OrganisationDashboard({ currentUser }) {
           </div>
         )}
       </div>
+
+      {/* REGISTERED TEAMS MODAL FOR ORGANISATIONS */}
+      {viewingRegisteredTeamsEvent && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Users className="text-blue-500" size={20} /> Registered Teams
+                </h3>
+                <span className="text-xs text-slate-400">Event: <b className="text-white">{viewingRegisteredTeamsEvent.title}</b></span>
+              </div>
+              <button onClick={() => setViewingRegisteredTeamsEvent(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto pr-1 flex-1">
+              {(!viewingRegisteredTeamsEvent.registeredTeams || viewingRegisteredTeamsEvent.registeredTeams.length === 0) ? (
+                <div className="text-center py-10 text-xs text-slate-400">
+                  No student teams have registered for this event yet.
+                </div>
+              ) : (
+                viewingRegisteredTeamsEvent.registeredTeams.map(t => (
+                  <div key={t._id} className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{t.name}</h4>
+                        <div className="text-xs text-slate-400 mt-0.5">
+                          Leader: <b className="text-slate-200">{t.creator?.name || 'Student Leader'}</b> ({t.creator?.email || ''})
+                        </div>
+                      </div>
+                      <span className="bg-slate-800 text-slate-300 text-[11px] font-semibold px-2.5 py-1 rounded-lg">
+                        {t.members?.length || 1} Member(s)
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-xs">
+                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Member Roster:</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {t.members?.map(m => (
+                          <div key={m._id || m} className="bg-slate-900 p-2 rounded-lg border border-slate-800/80 flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-slate-200">{m.name}</span>
+                            <span className="text-slate-500 text-[10px]">{m.email}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-800 flex justify-end">
+              <button
+                onClick={() => setViewingRegisteredTeamsEvent(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Event Modal */}
       {showModal && (
@@ -336,7 +408,6 @@ export default function OrganisationDashboard({ currentUser }) {
 
             <form onSubmit={handleSubmitForm} className="space-y-4 text-xs">
               
-              {/* Event Title */}
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-slate-400 mb-1">
                   Event Title *
@@ -351,7 +422,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-slate-400 mb-1">
                   Event Description *
@@ -366,7 +436,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 />
               </div>
 
-              {/* Row 2: Category & Date */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold uppercase tracking-wider text-slate-400 mb-1">
@@ -400,7 +469,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 </div>
               </div>
 
-              {/* Row 3: Venue & Mode */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold uppercase tracking-wider text-slate-400 mb-1">
@@ -432,7 +500,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 </div>
               </div>
 
-              {/* Row 4: Participation Type & Max Team Size */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold uppercase tracking-wider text-slate-400 mb-1">
@@ -465,7 +532,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 )}
               </div>
 
-              {/* Eligibility Description */}
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-slate-400 mb-1">
                   Eligibility Description
@@ -479,7 +545,6 @@ export default function OrganisationDashboard({ currentUser }) {
                 />
               </div>
 
-              {/* Form Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"

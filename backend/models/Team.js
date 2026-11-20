@@ -4,6 +4,7 @@ const teamSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
   eventName: { type: String, default: 'General Project' },
+  registeredEvent: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
   requiredSkills: [String],
   requiredInterests: [String],
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
